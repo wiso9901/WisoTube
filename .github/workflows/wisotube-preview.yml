@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Check out the original Skipii source
         uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -281,16 +281,44 @@ jobs:
           sed -i 's/?: return 0L/?: 0L/' app/src/main/java/com/decio/skipii/SleepTimer.kt
       - name: Build compressed release APK (no device tests)
         run: chmod +x ./gradlew && ./gradlew --no-daemon :app:assembleRelease
-      - name: Show APK size and verify signature
+      - name: Locate APK, sign if necessary, and show size
         shell: bash
         run: |
-          APK=app/build/outputs/apk/release/app-release.apk
-          test -s "$APK"
-          du -h "$APK"
-          find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1 | xargs -r -I '{}' '{}' verify "$APK"
+          set -euo pipefail
+          mkdir -p dist
+          echo "Generated APK files:"
+          find app/build/outputs/apk -type f -name '*.apk' -print
+          APK=$(find app/build/outputs/apk/release -type f -name '*.apk' -print -quit)
+          if [ -z "$APK" ] || [ ! -s "$APK" ]; then
+            echo "ERROR: Gradle did not produce an APK in the release directory."
+            exit 1
+          fi
+          echo "Using: $APK"
+          APKSIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          ZIPALIGN="$ANDROID_HOME/build-tools/36.0.0/zipalign"
+          if "$APKSIGNER" verify "$APK" >/dev/null 2>&1; then
+            echo "APK is already signed."
+            cp "$APK" dist/WisoTube-preview.apk
+          else
+            echo "APK needs a signature; generating a temporary installable key."
+            keytool -genkeypair -noprompt \
+              -keystore "$RUNNER_TEMP/wisotube-preview.p12" -storetype PKCS12 \
+              -storepass "wisotube-preview-only-2026" -keypass "wisotube-preview-only-2026" \
+              -alias wisotube -keyalg RSA -keysize 2048 -validity 3650 \
+              -dname "CN=WisoTube Preview, O=Personal"
+            "$ZIPALIGN" -f -p 4 "$APK" "$RUNNER_TEMP/wisotube-aligned.apk"
+            "$APKSIGNER" sign \
+              --ks "$RUNNER_TEMP/wisotube-preview.p12" \
+              --ks-key-alias wisotube \
+              --ks-pass 'pass:wisotube-preview-only-2026' \
+              --key-pass 'pass:wisotube-preview-only-2026' \
+              --out dist/WisoTube-preview.apk "$RUNNER_TEMP/wisotube-aligned.apk"
+          fi
+          "$APKSIGNER" verify --verbose dist/WisoTube-preview.apk
+          du -h dist/WisoTube-preview.apk
       - name: Save downloadable APK
         uses: actions/upload-artifact@v4
         with:
           name: WisoTube-preview-APK
-          path: app/build/outputs/apk/release/app-release.apk
+          path: dist/WisoTube-preview.apk
           if-no-files-found: error
