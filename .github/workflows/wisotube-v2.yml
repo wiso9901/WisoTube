@@ -2746,6 +2746,11 @@ jobs:
           # Old SVG launcher is replaced by the selected Concept 3 PNG.
           rm -f app/src/main/res/drawable/wisotube_icon.xml
           unzip -o -q "$RUNNER_TEMP/wisotube-v2.zip" -d .
+          # Fix Kotlin JVM signature clash: the enabled property already generates setEnabled(Boolean).
+          sed -i 's/fun setEnabled(value: Boolean)/fun updateEnabled(value: Boolean)/' app/src/main/java/com/decio/skipii/LitePreferences.kt
+          sed -i 's/LitePreferences\.setEnabled(/LitePreferences.updateEnabled(/g' app/src/main/java/com/decio/skipii/Screens.kt
+          grep -q 'fun updateEnabled(value: Boolean)' app/src/main/java/com/decio/skipii/LitePreferences.kt
+          grep -q 'LitePreferences.updateEnabled(' app/src/main/java/com/decio/skipii/Screens.kt
           test -f app/src/main/java/com/decio/skipii/LitePreferences.kt
           test -f app/src/main/res/drawable-nodpi/wisotube_icon.png
       - name: Build signed size-optimized release APK (no emulator tests)
