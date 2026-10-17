@@ -278,6 +278,7 @@ jobs:
           base64 --decode /tmp/WisoTube-patch.b64 > /tmp/WisoTube-patch.zip
           unzip -q /tmp/WisoTube-patch.zip -d /tmp/wisotube-patch
           python3 /tmp/wisotube-patch/WisoTube_builder/apply_wisotube.py .
+          sed -i 's/?: return 0L/?: 0L/' app/src/main/java/com/decio/skipii/SleepTimer.kt
       - name: Build compressed release APK (no device tests)
         run: chmod +x ./gradlew && ./gradlew --no-daemon :app:assembleRelease
       - name: Show APK size and verify signature
