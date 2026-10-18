@@ -3138,6 +3138,7 @@ jobs:
           WISO_OVERLAY_B64
           base64 -d "$RUNNER_TEMP/wiso-14.b64" > "$RUNNER_TEMP/wiso-14.zip"
           unzip -oq "$RUNNER_TEMP/wiso-14.zip" -d .
+          sed -i 's/import androidx.compose.material.icons.rounded.Moon/import androidx.compose.material.icons.rounded.Bedtime/; s/Icons.Rounded.Moon/Icons.Rounded.Bedtime/g' app/src/main/java/com/decio/skipii/WisoSpace.kt
           echo "Overlay size: $(stat -c%s "$RUNNER_TEMP/wiso-14.zip") bytes"
       - name: Build signed minified release APK (no emulator tests)
         shell: bash
